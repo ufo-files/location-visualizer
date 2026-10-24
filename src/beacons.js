@@ -5,8 +5,7 @@ export function createGlobeBeacon(viewer, beacon) {
   const top = C.Cartesian3.fromDegrees(beacon.lon,beacon.lat,20000000);
   const entities = [];
   const add = value => entities.push(viewer.entities.add(value));
-  const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><radialGradient id="h"><stop stop-color="${beacon.color}" stop-opacity=".7"/><stop offset="1" stop-color="${beacon.color}" stop-opacity="0"/></radialGradient></defs><circle cx="32" cy="32" r="32" fill="url(#h)"/><circle cx="32" cy="32" r="5" fill="white"/><path d="M32 8v8m0 32v8M8 32h8m32 0h8" stroke="${beacon.color}" stroke-width="2"/></svg>`;
-  add({position:ground,billboard:{image:`data:image/svg+xml,${encodeURIComponent(icon)}`,width:56,height:56},label:{text:beacon.name,font:'12px sans-serif',fillColor:color,outlineColor:C.Color.BLACK,outlineWidth:3,style:C.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new C.Cartesian2(28,20),horizontalOrigin:C.HorizontalOrigin.LEFT,showBackground:true,backgroundColor:C.Color.BLACK.withAlpha(.6)}});
+  add({position:ground,label:{text:beacon.name,font:'12px sans-serif',fillColor:color,outlineColor:C.Color.BLACK,outlineWidth:3,style:C.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new C.Cartesian2(28,20),horizontalOrigin:C.HorizontalOrigin.LEFT,showBackground:true,backgroundColor:C.Color.BLACK.withAlpha(.6)}});
   if(beacon.enabled){
     add({polyline:{positions:[ground,top],arcType:C.ArcType.NONE,width:18,material:new C.PolylineGlowMaterialProperty({color,glowPower:.3,taperPower:.3})}});
     add({polyline:{positions:[ground,top],arcType:C.ArcType.NONE,width:2,material:color.withAlpha(.95)}});
@@ -32,9 +31,7 @@ export function drawSpaceBeacon(ctx, project, ray, beacon, index = 0) {
       ctx.lineWidth=width;ctx.globalAlpha=alpha;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+dx,y+dy);ctx.stroke();
     }
   }
-  ctx.globalAlpha=1;ctx.shadowColor=beacon.color;ctx.shadowBlur=12;ctx.strokeStyle=beacon.color;ctx.lineWidth=1.5;
-  ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();
-  ctx.shadowBlur=0;
+  ctx.globalAlpha=1;ctx.shadowBlur=0;
   // Names share a physical origin at astronomical scales; stagger label leaders.
   const labelY=y+34+index*32;
   ctx.strokeStyle=`${beacon.color}99`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x+12,y+6);ctx.lineTo(x+30,labelY-4);ctx.lineTo(x+43,labelY-4);ctx.stroke();
