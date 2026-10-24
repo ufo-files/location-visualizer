@@ -5,7 +5,7 @@ export function createGlobeBeacon(viewer, beacon) {
   const top = C.Cartesian3.fromDegrees(beacon.lon,beacon.lat,20000000);
   const entities = [];
   const add = value => entities.push(viewer.entities.add(value));
-  if(beacon.id!=='stanford-dish')add({position:ground,label:{text:beacon.name,font:'12px sans-serif',fillColor:color,outlineColor:C.Color.BLACK,outlineWidth:3,style:C.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new C.Cartesian2(28,20),horizontalOrigin:C.HorizontalOrigin.LEFT,showBackground:true,backgroundColor:C.Color.BLACK.withAlpha(.6)}});
+  if(beacon.showLabel!==false&&beacon.id!=='stanford-dish')add({position:ground,label:{text:beacon.name,font:'12px sans-serif',fillColor:color,outlineColor:C.Color.BLACK,outlineWidth:3,style:C.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new C.Cartesian2(28,20),horizontalOrigin:C.HorizontalOrigin.LEFT,showBackground:true,backgroundColor:C.Color.BLACK.withAlpha(.6)}});
   if(beacon.enabled){
     add({polyline:{positions:[ground,top],arcType:C.ArcType.NONE,width:18,material:new C.PolylineGlowMaterialProperty({color,glowPower:.3,taperPower:.3})}});
     add({polyline:{positions:[ground,top],arcType:C.ArcType.NONE,width:2,material:color.withAlpha(.95)}});
@@ -32,7 +32,7 @@ export function drawSpaceBeacon(ctx, project, ray, beacon, index = 0) {
     }
   }
   ctx.globalAlpha=1;ctx.shadowBlur=0;
-  if(beacon.id!=='stanford-dish'){
+  if(beacon.showLabel!==false&&beacon.id!=='stanford-dish'){
     // Names share a physical origin at astronomical scales; stagger label leaders.
     const labelY=y+34+index*32;
     ctx.strokeStyle=`${beacon.color}99`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x+12,y+6);ctx.lineTo(x+30,labelY-4);ctx.lineTo(x+43,labelY-4);ctx.stroke();

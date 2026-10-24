@@ -68,8 +68,6 @@ export function drawGalaxy(ctx,project,px){
   ctx.fillStyle=halo;ctx.fillRect(x-r*1.5,y-r*1.5,r*3,r*3);
   ctx.save();ctx.filter='blur(5px) brightness(1.7)';ctx.drawImage(galaxy,x-r,y-r,r*2,r*2);ctx.filter='none';ctx.globalAlpha=.65;ctx.drawImage(galaxy,x-r,y-r,r*2,r*2);ctx.restore();
   ctx.strokeStyle='#e6d2a823';ctx.setLineDash([3,7]);ctx.beginPath();ctx.arc(x,y,8178*PC_AU*px,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle='#efddbe';ctx.font='11px monospace';ctx.fillText('GALACTIC CENTER',x+25,y+40);
-  const [sx,sy]=project(SUN);ctx.fillStyle='#bdf2d2';ctx.font='10px monospace';ctx.fillText('SOLAR SYSTEM',sx-95,sy-22);
 }
 const periods={Mercury:87.969,Venus:224.701,Earth:365.256,Mars:686.98,Jupiter:4332.59,Saturn:10759.22,Uranus:30688.5,Neptune:60182};
 let orbitEpoch,orbits;
@@ -82,18 +80,8 @@ export function drawSolarSystem(ctx,project,date,positions,pixelsPerAU){
     ctx.beginPath();path.forEach((v,i)=>{const [x,y]=project(v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.closePath();ctx.strokeStyle=body==='Earth'?'#9de9c44d':'#8ca8bf35';ctx.lineWidth=1;ctx.stroke();
   }
   const bodies=[['Sun',SUN],...Object.keys(periods).reverse().map(body=>[body,positions[body]])];
-  const labels=[];
-  ctx.font='11px monospace';
   for(const [body,p]of bodies){
-    const [x,y]=project(p),r=bodyRadiusPixels(body,pixelsPerAU);
-    planet(ctx,body,x,y,r,false);
-    if(x<0||y<75||x>innerWidth||y>innerHeight-220)continue;
-    const textWidth=ctx.measureText(body).width+12;
-    let labelX=x+r+12,labelY=y-10;
-    // Labels retain readable size; they never enlarge the physical body.
-    while(labels.some(l=>Math.abs(l.y-labelY)<17&&labelX<l.x+l.width&&labelX+textWidth>l.x))labelY-=18;
-    labels.push({x:labelX,y:labelY,width:textWidth});
-    ctx.strokeStyle='#8ca8bf65';ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(labelX-4,labelY-4);ctx.stroke();
-    ctx.font='11px monospace';ctx.fillStyle=body==='Earth'?'#c1f1d5':'#c2d0da';ctx.fillText(body,labelX,labelY);
+    const [x,y]=project(p);
+    planet(ctx,body,x,y,bodyRadiusPixels(body,pixelsPerAU),false);
   }
 }

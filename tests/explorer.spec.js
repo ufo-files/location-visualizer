@@ -1,77 +1,34 @@
 import { test, expect } from '@playwright/test';
-test('Stanford Dish defaults to state-level view and space scenes render',async({page},testInfo)=>{
+
+test('header coordinates replace the location panel and all scale views render',async({page},testInfo)=>{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const tile=page.waitForResponse(r=>r.url().includes('World_Imagery/MapServer/tile/')&&r.ok(),{timeout:60000});
-  await page.goto('./');
-  await expect(page.locator('#go')).toBeEnabled({timeout:60000});
-  await expect(page.locator('#location-title')).toHaveText('Stanford Dish');
-  await expect(page.locator('#coordinates')).toContainText('37.40830°, -122.17900°');
-  const altitude=Number((await page.locator('#distance').textContent()).replace(/[^\d.]/g,''));
-  expect(altitude).toBeGreaterThan(1500);expect(altitude).toBeLessThan(2200);
-  await tile;
-  await page.waitForTimeout(2000);
-  await page.screenshot({path:testInfo.outputPath('stanford-california.png')});
-  for(const [name,rendering]of [['Milky Way','barred-spiral-galaxy'],['Solar system','shaded-planets-and-orbits'],['Inner planets','shaded-planets-and-orbits']]){
-    await page.locator('#scale').fill(String({'Milky Way':0,'Solar system':1,'Inner planets':1.25}[name]));
-    await expect(page.locator('#space')).toHaveAttribute('data-rendering',rendering);
-    const lit=await page.locator('#space').evaluate(c=>{const {data}=c.getContext('2d').getImageData(0,0,c.width,c.height);let n=0;for(let i=0;i<data.length;i+=4)if(data[i]>45&&data[i+1]>45&&data[i+2]>45)n++;return n;});
-    expect(lit).toBeGreaterThan(name==='Milky Way'?15000:500);
-    await page.screenshot({path:testInfo.outputPath(`${name.toLowerCase().replaceAll(' ','-')}.png`)});
+  await page.goto('./');await expect(page.locator('#location-input')).toBeEnabled({timeout:60000});
+  await expect(page.locator('#location-input')).toHaveValue('37.40830, -122.17900');
+  await expect(page.locator('aside')).toHaveCount(0);
+  await expect(page.locator('header input')).toHaveCount(1);
+  await expect(page.locator('header button')).toHaveCount(0);
+  await expect(page.locator('.intro, #space-note')).toHaveCount(0);
+  await tile;await page.screenshot({path:testInfo.outputPath('header-coordinates.png')});
+  for(const [zoom,rendering]of [['0','barred-spiral-galaxy'],['1','shaded-planets-and-orbits'],['1.25','shaded-planets-and-orbits']]){
+    await page.locator('#scale').fill(zoom);await expect(page.locator('#space')).toHaveAttribute('data-rendering',rendering);
   }
   expect(errors).toEqual([]);
 });
-test('satellite globe, geolocation, and astronomical scale',async({browser})=>{
-  const context=await browser.newContext({baseURL:test.info().project.use.baseURL,permissions:['geolocation'],geolocation:{latitude:37.7749,longitude:-122.4194,accuracy:25}});
-  const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  const satelliteTile=page.waitForResponse(r=>r.url().includes('World_Imagery/MapServer/tile/')&&r.ok(),{timeout:60000});
-  await page.goto('./');
-  await expect(page.locator('#locate')).toBeEnabled({timeout:60000});
-  await page.waitForFunction(()=>document.querySelectorAll('.cesium-credit-textContainer').length>0);
-  await satelliteTile;
-  await page.locator('#locate').click();
-  await expect(page.locator('#coordinates')).toContainText('37.77490');
-  await expect(page.locator('#coordinates')).toContainText('±25 m');
-  await page.locator('#scale').fill('0');
-  await expect(page.locator('#space')).toBeVisible();
-  await expect(page.locator('#scale')).toHaveAttribute('aria-valuetext','Milky Way');
-  await page.locator('#scale').fill('1');
-  await expect(page.locator('#scale')).toHaveAttribute('aria-valuetext','Solar system');
-  await page.locator('#scale').fill('2');
-  await page.locator('#coordinate-details summary').click();await page.locator('#lat').fill('-33.8688');await page.locator('#lon').fill('151.2093');await page.locator('#go').click();
-  await expect(page.locator('#coordinates')).toContainText('-33.86880');
-  expect(errors).toEqual([]);await context.close();
+
+test('coordinate entry moves the laser without changing zoom and rejects invalid coordinates',async({page})=>{
+  await page.goto('./');const input=page.getByRole('textbox',{name:'Latitude, longitude'});
+  await expect(input).toBeEnabled({timeout:60000});await page.locator('#scale').fill('2');
+  await input.fill('-33.8688, 151.2093');await input.press('Enter');
+  await expect(input).toHaveValue('-33.86880, 151.20930');await expect(page.locator('#scale')).toHaveValue('2');
+  await input.fill('95, 200');await input.press('Enter');
+  await expect(page.locator('#status')).toBeVisible();await expect(page.locator('#status')).toContainText('−90 to 90');
+  await input.fill('0, 0');await input.press('Enter');await expect(input).toHaveValue('0.00000, 0.00000');
+  await page.setViewportSize({width:390,height:844});await expect(input).toBeVisible();
 });
-test('denied geolocation offers manual coordinates',async({page})=>{
-  await page.addInitScript(()=>{navigator.geolocation.getCurrentPosition=(_success,error)=>error({code:1});});
-  await page.goto('./');await expect(page.locator('#locate')).toBeEnabled({timeout:60000});await page.locator('#locate').click();await expect(page.locator('#status')).toContainText('denied');
-});
-test('custom beacons can be named, colored, toggled, focused, and removed',async({page},testInfo)=>{
-  await page.goto('./');await expect(page.locator('#go')).toBeEnabled({timeout:60000});
-  await page.locator('.beacon-controls summary').click();
-  await page.locator('#marker-name').fill('Home beam');
-  await page.locator('#marker-color').fill('#ff55cc');
-  await expect(page.locator('#location-title')).toHaveText('Home beam');
-  await page.locator('#scale').fill('0');
-  const countColored=()=>page.locator('#space').evaluate(c=>{const a=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=0;i<a.length;i+=4)if(a[i]>a[i+1]*1.8&&a[i+2]>a[i+1]*1.5&&a[i]>90)n++;return n;});
-  const on=await countColored();expect(on).toBeGreaterThan(200);
-  await page.locator('#beam-enabled').uncheck();const off=await countColored();expect(on-off).toBeGreaterThan(150);
-  await page.locator('#beam-enabled').check();
-  await page.screenshot({path:testInfo.outputPath('custom-galactic-beam.png')});
-  await page.locator('#scale').fill('2');
-  await page.locator('#coordinate-details summary').click();
-  await page.locator('#beacon-name').fill('Sydney beacon');await page.locator('#lat').fill('-33.8688');await page.locator('#lon').fill('151.2093');await page.locator('#go').click();
-  await expect(page.getByRole('button',{name:'Focus Sydney beacon',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Focus Home beam',exact:true})).toBeVisible();
-  await page.locator('#scale').fill('1');
-  await expect(page.locator('#space')).toHaveAttribute('data-beacon-count','2');
-  await page.getByRole('button',{name:'Remove Sydney beacon',exact:true}).click();
-  await expect(page.locator('#space')).toHaveAttribute('data-beacon-count','1');
-  await expect(page.locator('#location-title')).toHaveText('Home beam');
-  await page.setViewportSize({width:390,height:844});
-  await expect(page.locator('.beacon-controls summary')).toBeVisible();
-});
+
 test('rendered solar disks use physical radii and grow with distance zoom',async({page})=>{
-  await page.goto('./');await expect(page.locator('#go')).toBeEnabled({timeout:60000});
+  await page.goto('./');await expect(page.locator('#location-input')).toBeEnabled({timeout:60000});
   await page.evaluate(()=>{
     window.sphereDraws=[];
     const original=CanvasRenderingContext2D.prototype.drawImage;

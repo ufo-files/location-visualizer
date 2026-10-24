@@ -26,7 +26,8 @@ async function globeBounds(page){
         C.Cartesian3.multiplyByScalar(top,Math.sin(angle)*limbRadius,new C.Cartesian3()),new C.Cartesian3()),new C.Cartesian3());
       return C.SceneTransforms.worldToWindowCoordinates(v,point);
     });
-    const origin=C.SceneTransforms.worldToWindowCoordinates(v,C.Cartesian3.fromDegrees(-122.179,37.4083,5));
+    const [lat,lon]=document.getElementById('location-input').value.split(',').map(Number);
+    const origin=C.SceneTransforms.worldToWindowCoordinates(v,C.Cartesian3.fromDegrees(lon,lat,5));
     return {minX:Math.min(...points.map(p=>p.x)),maxX:Math.max(...points.map(p=>p.x)),minY:Math.min(...points.map(p=>p.y)),maxY:Math.max(...points.map(p=>p.y)),centerX:origin.x,centerY:origin.y,width:v.canvas.clientWidth,height:v.canvas.clientHeight};
   });
 }
@@ -38,7 +39,7 @@ async function expectWholeGlobe(page){
 }
 test('laser base stays centered with slider, mouse zoom, rotation, and orientation changes',async({page},testInfo)=>{
   await exposeViewer(page);await page.setViewportSize({width:1024,height:768});
-  await page.goto('./');await expect(page.locator('#locate')).toBeEnabled({timeout:60000});
+  await page.goto('./');await expect(page.locator('#location-input')).toBeEnabled({timeout:60000});
   const startingAngle=await page.evaluate(()=>{
     const c=window.testScene.camera;return {direction:[c.directionWC.x,c.directionWC.y,c.directionWC.z],up:[c.upWC.x,c.upWC.y,c.upWC.z]};
   });
@@ -64,7 +65,9 @@ test('laser base stays centered with slider, mouse zoom, rotation, and orientati
   await page.mouse.move(500,350);await page.mouse.wheel(0,2500);
   await expect.poll(()=>page.evaluate(()=>Cesium.Cartesian3.magnitude(window.testScene.camera.positionWC))).toBeGreaterThan(30000000);
   await expectWholeGlobe(page);
+  await page.evaluate(()=>{window.testScene.screenSpaceCameraController.inertiaSpin=0;window.testScene.screenSpaceCameraController.inertiaTilt=0;});
   await page.mouse.move(683,320);await page.mouse.down();await page.mouse.move(790,370,{steps:12});await page.mouse.up();
+  await page.waitForTimeout(100);
   const rotatedDirection=await page.evaluate(()=>{const d=window.testScene.camera.directionWC;return [d.x,d.y,d.z];});
   await page.locator('#scale').fill('2.05');
   const afterZoom=await page.evaluate(()=>{const d=window.testScene.camera.directionWC;return [d.x,d.y,d.z];});
