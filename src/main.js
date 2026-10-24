@@ -96,7 +96,7 @@ function changeLevel(value) {
     const pitch=Cesium.Math.toRadians(-55);
     viewer.camera.lookAt(Cesium.Cartesian3.fromDegrees(focus.lon,focus.lat),new Cesium.HeadingPitchRange(0,pitch,altitude/Math.sin(-pitch)));
     viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-    wholeEarthFramed=frameWholeEarth(viewer);
+    wholeEarthFramed=frameWholeEarth(viewer,false,true);
     $('distance').textContent=`Camera altitude: ${(viewer.camera.positionCartographic.height/1000).toLocaleString(undefined,{maximumFractionDigits:1})} km`;
     $('context').textContent=level>2.5&&!location?'Use Find my location or enter coordinates to set your destination.':'Drag to rotate · Scroll to zoom · Right-drag to tilt';
   }
@@ -134,8 +134,7 @@ async function init(){
     viewer.scene.globe.baseColor=Cesium.Color.fromCssColorString('#152c38');
     viewer.scene.screenSpaceCameraController.maximumZoomDistance=50000000;
     viewer.scene.screenSpaceCameraController.minimumZoomDistance=100;
-    viewer.camera.percentageChanged=.005;
-    viewer.camera.changed.addEventListener(()=>{
+    viewer.scene.postUpdate.addEventListener(()=>{
       if(level>=1.85)wholeEarthFramed=frameWholeEarth(viewer);
     });
     setLocation(DEFAULT_LOCATION.lat,DEFAULT_LOCATION.lon,undefined,{id:'stanford-dish',name:DEFAULT_LOCATION.name,level:DEFAULT_LEVEL});
