@@ -12,17 +12,23 @@ glow.addColorStop(.3,'#9a9bb029');glow.addColorStop(.8,'#5b789b0d');glow.addColo
 g.fillStyle=glow;g.fillRect(0,0,1400,1400);
 // A barred spiral morphology, explicitly illustrative rather than fitted arms.
 for(let i=0;i<45000;i++){
-  const arm=i%4, r=45+Math.pow(random(),.7)*560;
+  const arm=i%4, r=35+Math.pow(random(),.7)*650;
   const spread=(random()+random()+random()-1.5);
   const angle=arm*Math.PI/2+Math.log(r/70)*2.25+spread*(.36+110/r);
   const x=700+Math.cos(angle)*r,y=700+Math.sin(angle)*r;
   const size=.5+random()*2.3;
-  g.fillStyle=i%13===0?'rgba(255,163,193,.32)':i%3===0?'rgba(163,196,255,.22)':'rgba(224,228,255,.16)';
+  const falloff=Math.exp(-Math.max(0,r-250)/170);
+  g.fillStyle=i%13===0?`rgba(255,163,193,${.32*falloff})`:i%3===0?`rgba(163,196,255,${.22*falloff})`:`rgba(224,228,255,${.16*falloff})`;
   g.beginPath();g.arc(x,y,size,0,Math.PI*2);g.fill();
 }
 g.save();g.translate(700,700);g.rotate(-.45);g.scale(1,.35);
 const core=g.createRadialGradient(0,0,0,0,0,170);core.addColorStop(0,'#fff3dbe6');core.addColorStop(.25,'#e9c6a9ac');core.addColorStop(1,'#d6b2a000');
 g.fillStyle=core;g.fillRect(-180,-180,360,360);g.restore();
+// Fade the entire disk continuously, including its particle distribution.
+g.globalCompositeOperation='destination-in';
+const edge=g.createRadialGradient(700,700,0,700,700,700);
+edge.addColorStop(0,'#ffffffff');edge.addColorStop(.4,'#ffffffff');edge.addColorStop(.65,'#ffffffb3');edge.addColorStop(.85,'#ffffff33');edge.addColorStop(1,'#ffffff00');
+g.fillStyle=edge;g.fillRect(0,0,1400,1400);g.globalCompositeOperation='source-over';
 
 const colors={Sun:['#fff8bc','#fba63b'],Mercury:['#b6aaa0','#625a55'],Venus:['#f3d598','#9d754b'],Earth:['#76bbdd','#164277'],Mars:['#eaa17b','#8b3824'],Jupiter:['#efd4b2','#a26d50'],Saturn:['#e8d7b0','#a59063'],Uranus:['#bcf4f3','#4f969d'],Neptune:['#689bf8','#183c9d']};
 const textures=new Map();
@@ -56,11 +62,13 @@ export function planet(ctx,body,x,y,r,label=true){
 }
 export function drawGalaxy(ctx,project,px){
   const [x,y]=project([0,0,0]);const r=18000*PC_AU*px;
+  const halo=ctx.createRadialGradient(x,y,r*.15,x,y,r*1.5);
+  halo.addColorStop(0,'#8c9eb30c');halo.addColorStop(.55,'#8c9eb305');halo.addColorStop(1,'#8c9eb300');
+  ctx.fillStyle=halo;ctx.fillRect(x-r*1.5,y-r*1.5,r*3,r*3);
   ctx.save();ctx.filter='blur(5px) brightness(1.7)';ctx.drawImage(galaxy,x-r,y-r,r*2,r*2);ctx.filter='none';ctx.globalAlpha=.65;ctx.drawImage(galaxy,x-r,y-r,r*2,r*2);ctx.restore();
   ctx.strokeStyle='#e6d2a823';ctx.setLineDash([3,7]);ctx.beginPath();ctx.arc(x,y,8178*PC_AU*px,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
   ctx.fillStyle='#efddbe';ctx.font='11px monospace';ctx.fillText('GALACTIC CENTER',x+25,y+40);
-  const [sx,sy]=project(SUN);ctx.strokeStyle='#bdf2d2';ctx.beginPath();ctx.arc(sx,sy,7,0,Math.PI*2);ctx.stroke();
-  ctx.fillStyle='#bdf2d2';ctx.beginPath();ctx.arc(sx,sy,2,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.moveTo(sx,sy-10);ctx.lineTo(sx-25,sy-45);ctx.lineTo(sx-185,sy-45);ctx.stroke();ctx.fillText('YOU ARE HERE',sx-185,sy-66);ctx.fillText('Solar system',sx-185,sy-51);
+  const [sx,sy]=project(SUN);ctx.fillStyle='#bdf2d2';ctx.font='10px monospace';ctx.fillText('SOLAR SYSTEM',sx-95,sy-22);
 }
 const periods={Mercury:87.969,Venus:224.701,Earth:365.256,Mars:686.98,Jupiter:4332.59,Saturn:10759.22,Uranus:30688.5,Neptune:60182};
 let orbitEpoch,orbits;

@@ -37,11 +37,36 @@ test('satellite globe, geolocation, and astronomical scale',async({browser})=>{
   await page.getByRole('button',{name:'Solar system',exact:true}).click();
   await expect(page.locator('#scale-title')).toHaveText('SOLAR SYSTEM');
   await page.getByRole('button',{name:'Earth',exact:true}).click();
-  await page.locator('summary').click();await page.locator('#lat').fill('-33.8688');await page.locator('#lon').fill('151.2093');await page.locator('#go').click();
+  await page.locator('#coordinate-details summary').click();await page.locator('#lat').fill('-33.8688');await page.locator('#lon').fill('151.2093');await page.locator('#go').click();
   await expect(page.locator('#coordinates')).toContainText('-33.86880');
   expect(errors).toEqual([]);await context.close();
 });
 test('denied geolocation offers manual coordinates',async({page})=>{
   await page.addInitScript(()=>{navigator.geolocation.getCurrentPosition=(_success,error)=>error({code:1});});
   await page.goto('./');await expect(page.locator('#locate')).toBeEnabled({timeout:60000});await page.locator('#locate').click();await expect(page.locator('#status')).toContainText('denied');
+});
+test('custom beacons can be named, colored, toggled, focused, and removed',async({page},testInfo)=>{
+  await page.goto('./');await expect(page.locator('#go')).toBeEnabled({timeout:60000});
+  await page.locator('.beacon-controls summary').click();
+  await page.locator('#marker-name').fill('Home beam');
+  await page.locator('#marker-color').fill('#ff55cc');
+  await expect(page.locator('#location-title')).toHaveText('Home beam');
+  await page.getByRole('button',{name:'Milky Way',exact:true}).click();
+  const countColored=()=>page.locator('#space').evaluate(c=>{const a=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=0;i<a.length;i+=4)if(a[i]>a[i+1]*1.8&&a[i+2]>a[i+1]*1.5&&a[i]>90)n++;return n;});
+  const on=await countColored();expect(on).toBeGreaterThan(200);
+  await page.locator('#beam-enabled').uncheck();const off=await countColored();expect(on-off).toBeGreaterThan(150);
+  await page.locator('#beam-enabled').check();
+  await page.screenshot({path:testInfo.outputPath('custom-galactic-beam.png')});
+  await page.getByRole('button',{name:'Earth',exact:true}).click();
+  await page.locator('#coordinate-details summary').click();
+  await page.locator('#beacon-name').fill('Sydney beacon');await page.locator('#lat').fill('-33.8688');await page.locator('#lon').fill('151.2093');await page.locator('#go').click();
+  await expect(page.getByRole('button',{name:'Focus Sydney beacon',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Focus Home beam',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Solar system',exact:true}).click();
+  await expect(page.locator('#space')).toHaveAttribute('data-beacon-count','2');
+  await page.getByRole('button',{name:'Remove Sydney beacon',exact:true}).click();
+  await expect(page.locator('#space')).toHaveAttribute('data-beacon-count','1');
+  await expect(page.locator('#location-title')).toHaveText('Home beam');
+  await page.setViewportSize({width:390,height:844});
+  await expect(page.locator('.beacon-controls summary')).toBeVisible();
 });
