@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HelioDistance } from 'astronomy-engine';
-import { SUN, position, fieldWidth, locationRay, AU_KM } from '../src/astronomy.js';
+import { SUN, position, fieldWidth, locationRay, AU_KM, BODY_RADIUS_KM, bodyRadiusPixels } from '../src/astronomy.js';
 test('Galactic rotation and translation preserve heliocentric distances',()=>{
   const date=new Date('2026-10-24T12:00:00Z');
   for(const body of ['Mercury','Venus','Earth','Mars','Jupiter','Saturn','Uranus','Neptune']){
@@ -25,4 +25,13 @@ test('surface-normal beams rotate with Earth and opposite sites point in opposit
   assert.ok(radius>6300&&radius<6450);
   const later=locationRay(37.4083,-122.179,new Date(+date+6*3600000));
   assert.ok(Math.hypot(...later.direction.map((n,i)=>n-ray.direction[i]))>.8);
+});
+test('body radii use the distance scale without a minimum display size',()=>{
+  const px=900/80;
+  assert.ok(bodyRadiusPixels('Earth',px)<.001);
+  assert.ok(Math.abs(bodyRadiusPixels('Sun',px)/bodyRadiusPixels('Earth',px)-109.1978)<.001);
+  for(const body of Object.keys(BODY_RADIUS_KM)){
+    assert.ok(Math.abs(bodyRadiusPixels(body,px)/px*AU_KM-BODY_RADIUS_KM[body])<1e-8);
+    assert.equal(bodyRadiusPixels(body,px*2),bodyRadiusPixels(body,px)*2);
+  }
 });

@@ -15,7 +15,7 @@ test('Stanford Dish defaults to state-level view and space scenes render',async(
     await page.getByRole('button',{name,exact:true}).click();
     await expect(page.locator('#space')).toHaveAttribute('data-rendering',rendering);
     const lit=await page.locator('#space').evaluate(c=>{const {data}=c.getContext('2d').getImageData(0,0,c.width,c.height);let n=0;for(let i=0;i<data.length;i+=4)if(data[i]>45&&data[i+1]>45&&data[i+2]>45)n++;return n;});
-    expect(lit).toBeGreaterThan(name==='Milky Way'?15000:3000);
+    expect(lit).toBeGreaterThan(name==='Milky Way'?15000:500);
     await page.screenshot({path:testInfo.outputPath(`${name.toLowerCase().replaceAll(' ','-')}.png`)});
   }
   expect(errors).toEqual([]);
@@ -69,4 +69,28 @@ test('custom beacons can be named, colored, toggled, focused, and removed',async
   await expect(page.locator('#location-title')).toHaveText('Home beam');
   await page.setViewportSize({width:390,height:844});
   await expect(page.locator('.beacon-controls summary')).toBeVisible();
+});
+test('rendered solar disks use physical radii and grow with distance zoom',async({page})=>{
+  await page.goto('./');await expect(page.locator('#go')).toBeEnabled({timeout:60000});
+  await page.evaluate(()=>{
+    window.sphereDraws=[];
+    const original=CanvasRenderingContext2D.prototype.drawImage;
+    CanvasRenderingContext2D.prototype.drawImage=function(...args){
+      if(this.canvas.id==='space'&&args.length===9&&args[0].width===160)window.sphereDraws.push(args[7]);
+      return original.apply(this,args);
+    };
+  });
+  await page.getByRole('button',{name:'Solar system',exact:true}).click();
+  const widths=await page.evaluate(()=>window.sphereDraws);
+  expect(widths).toHaveLength(9);
+  const px=900/80;
+  expect(widths[0]).toBeCloseTo(2*695700/149597870.7*px,10);
+  expect(widths[4]/widths[6]).toBeCloseTo(69911/6371.0084,7);
+  expect(widths[6]).toBeLessThan(.001);
+  await page.evaluate(()=>window.sphereDraws=[]);
+  await page.getByRole('button',{name:'Inner planets',exact:true}).click();
+  const innerSun=await page.evaluate(()=>window.sphereDraws[0]);
+  // Inner view spans 4 AU rather than 80 AU: every disk must be 20x wider.
+  expect(innerSun/widths[0]).toBeCloseTo(20,6);
+  await expect(page.locator('#context')).toContainText('True size and distance scale');
 });

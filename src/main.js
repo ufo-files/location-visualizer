@@ -46,7 +46,7 @@ const planets = ['Mercury','Venus','Earth','Mars','Jupiter','Saturn','Uranus','N
 let positions = Object.fromEntries(planets.map(p => [p, position(p, epoch)]));
 const status = (message) => { $('status').textContent = message; };
 function drawSpace() {
-  $('space-note').textContent=`${epoch.toISOString().slice(0,19)} UTC · Galactic north up · Spiral structure illustrative · R₀ = 8178 ±13(stat) ±22(sys) pc · Sizes and beam lengths illustrative; positions & beam directions calculated`;
+  $('space-note').textContent=`${epoch.toISOString().slice(0,19)} UTC · Galactic north up · ${level<.65?'Spiral structure illustrative · R₀ = 8178 ±13(stat) ±22(sys) pc':'Sun and planet radii share the orbital distance scale · Mean-radius spheres'} · Labels and beacon lengths illustrative`;
   const dpr = Math.min(devicePixelRatio, 2), w = innerWidth, h = innerHeight;
   canvas.width = w*dpr; canvas.height = h*dpr; ctx.scale(dpr,dpr);
   ctx.fillStyle = '#03070c'; ctx.fillRect(0,0,w,h);
@@ -60,7 +60,7 @@ function drawSpace() {
     drawGalaxy(ctx,project,px);
     canvas.dataset.rendering='barred-spiral-galaxy';
   } else {
-    drawSolarSystem(ctx,project,epoch,positions);
+    drawSolarSystem(ctx,project,epoch,positions,px);
     canvas.dataset.rendering='shaded-planets-and-orbits';
   }
   beacons.forEach((beacon,index)=>drawSpaceBeacon(ctx,project,locationRay(beacon.lat,beacon.lon,epoch),beacon,index));
@@ -80,12 +80,12 @@ function changeLevel(value) {
   document.body.classList.toggle('cosmic',cosmic);
   const galactic = level < .65;
   document.querySelector('.intro h1').innerHTML = cosmic ? (galactic ? 'The Milky Way.' : 'Our solar system.') : 'Your place.<br>In everything.';
-  document.querySelector('.intro > p:last-child').textContent = cosmic ? (galactic ? 'A rendered barred spiral. Our Sun lies about 26,700 light-years from the center.' : 'Rendered worlds on calculated orbits. Choose Inner planets to explore closer to the Sun.') : 'From our galactic neighborhood to the ground beneath your feet.';
+  document.querySelector('.intro > p:last-child').textContent = cosmic ? (galactic ? 'A rendered barred spiral. Our Sun lies about 26,700 light-years from the center.' : 'True body sizes and orbital distances. At this scale planets are smaller than a pixel; labels show their positions.') : 'From our galactic neighborhood to the ground beneath your feet.';
   canvas.style.display=cosmic?'block':'none';$('earth').style.visibility=cosmic?'hidden':'visible';
   $('space-note').hidden=!cosmic;
   $('scale-title').textContent=level<.6?'MILKY WAY':level<1.6?'SOLAR SYSTEM':level<2.5?'EARTH':'YOUR LOCATION';
   document.querySelectorAll('[data-level]').forEach(b=>b.classList.toggle('active',Math.abs(Number(b.dataset.level)-level)<.15));
-  if(cosmic){drawSpace();$('context').textContent='Scroll or use the slider · Galactic north up · Body sizes enlarged';}
+  if(cosmic){drawSpace();$('context').textContent=galactic?'Scroll or use the slider · Galactic north up':'True size and distance scale · Labels and beacons remain visible';}
   else if(viewer){
     const focus=location || {lat:20,lon:0};
     const amount=Math.max(0,Math.min(1,level-2));

@@ -1,6 +1,14 @@
 import { HelioVector, RotateVector, Rotation_EQJ_GAL, Observer, ObserverVector } from 'astronomy-engine';
 export const AU_KM = 149597870.7;
 export const PC_AU = 206264.806247;
+// Volumetric mean radii (km): NASA/JPL physical parameters and NASA Sun fact sheet.
+export const BODY_RADIUS_KM = Object.freeze({
+  Sun:695700, Mercury:2439.4, Venus:6051.8, Earth:6371.0084,
+  Mars:3389.5, Jupiter:69911, Saturn:58232, Uranus:25362, Neptune:24622,
+});
+export function bodyRadiusPixels(body, pixelsPerAU) {
+  return BODY_RADIUS_KM[body] / AU_KM * pixelsPerAU;
+}
 export const SUN = [-8178 * PC_AU, 0, 20.8 * PC_AU];
 export function position(body, date = new Date()) {
   const v = RotateVector(Rotation_EQJ_GAL(), HelioVector(body, date));

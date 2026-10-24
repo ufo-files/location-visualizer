@@ -1,4 +1,4 @@
-import { SUN, PC_AU, position } from './astronomy.js';
+import { SUN, PC_AU, position, bodyRadiusPixels } from './astronomy.js';
 
 // Deterministic illustrative surfaces. None of these samples is a catalog star.
 let seed = 719;
@@ -57,7 +57,8 @@ export function planet(ctx,body,x,y,r,label=true){
     const halo=ctx.createRadialGradient(x,y,r*.5,x,y,r*4);halo.addColorStop(0,'#ffce6477');halo.addColorStop(1,'#ffaf1800');ctx.fillStyle=halo;ctx.fillRect(x-r*4,y-r*4,r*8,r*8);
   }
   if(body==='Saturn'){ctx.save();ctx.translate(x,y);ctx.rotate(-.35);ctx.strokeStyle='#e9cf9980';ctx.lineWidth=r*.35;ctx.beginPath();ctx.ellipse(0,0,r*1.9,r*.6,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
-  ctx.drawImage(surface(body),x-r,y-r,r*2,r*2);
+  // Crop the texture's transparent padding so the visible limb has radius r.
+  ctx.drawImage(surface(body),4,4,152,152,x-r,y-r,r*2,r*2);
   if(label){ctx.fillStyle=body==='Earth'?'#c1f1d5':'#c2d0da';ctx.font='11px monospace';ctx.fillText(body,x+r+6,y-5);}
 }
 export function drawGalaxy(ctx,project,px){
@@ -72,7 +73,7 @@ export function drawGalaxy(ctx,project,px){
 }
 const periods={Mercury:87.969,Venus:224.701,Earth:365.256,Mars:686.98,Jupiter:4332.59,Saturn:10759.22,Uranus:30688.5,Neptune:60182};
 let orbitEpoch,orbits;
-export function drawSolarSystem(ctx,project,date,positions){
+export function drawSolarSystem(ctx,project,date,positions,pixelsPerAU){
   if(!orbitEpoch || Math.abs(date-orbitEpoch)>86400000){
     orbitEpoch=date;
     orbits=Object.fromEntries(Object.entries(periods).map(([body,days])=>[body,Array.from({length:181},(_,i)=>position(body,new Date(+date+(i/180-.5)*days*86400000)))]));
@@ -80,10 +81,19 @@ export function drawSolarSystem(ctx,project,date,positions){
   for(const [body,path]of Object.entries(orbits)){
     ctx.beginPath();path.forEach((v,i)=>{const [x,y]=project(v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.closePath();ctx.strokeStyle=body==='Earth'?'#9de9c44d':'#8ca8bf35';ctx.lineWidth=1;ctx.stroke();
   }
-  const [sx,sy]=project(SUN);planet(ctx,'Sun',sx,sy,23);
-  const sizes={Mercury:6,Venus:8,Earth:9,Mars:7,Jupiter:23,Saturn:19,Uranus:14,Neptune:14};
-  // Draw outer bodies first so the inner planets remain visible.
-  const [ex,ey]=project(positions.Earth);
-  const overview=Math.hypot(ex-sx,ey-sy)<35;
-  for(const body of Object.keys(periods).reverse()){const [x,y]=project(positions[body]);planet(ctx,body,x,y,sizes[body],!(overview&&['Mercury','Venus','Earth','Mars'].includes(body)));}
+  const bodies=[['Sun',SUN],...Object.keys(periods).reverse().map(body=>[body,positions[body]])];
+  const labels=[];
+  ctx.font='11px monospace';
+  for(const [body,p]of bodies){
+    const [x,y]=project(p),r=bodyRadiusPixels(body,pixelsPerAU);
+    planet(ctx,body,x,y,r,false);
+    if(x<0||y<75||x>innerWidth||y>innerHeight-220)continue;
+    const textWidth=ctx.measureText(body).width+12;
+    let labelX=x+r+12,labelY=y-10;
+    // Labels retain readable size; they never enlarge the physical body.
+    while(labels.some(l=>Math.abs(l.y-labelY)<17&&labelX<l.x+l.width&&labelX+textWidth>l.x))labelY-=18;
+    labels.push({x:labelX,y:labelY,width:textWidth});
+    ctx.strokeStyle='#8ca8bf65';ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(labelX-4,labelY-4);ctx.stroke();
+    ctx.font='11px monospace';ctx.fillStyle=body==='Earth'?'#c1f1d5':'#c2d0da';ctx.fillText(body,labelX,labelY);
+  }
 }
