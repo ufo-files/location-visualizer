@@ -1,16 +1,16 @@
-import { SUN, AU_KM, position, fieldWidth, locationRay } from './astronomy.js';
+import { AU_KM, position, fieldWidth, locationRay } from './astronomy.js';
 import { drawGalaxy, drawSolarSystem } from './render-space.js';
 import './scenes.css';
 import './beacons.css';
 import './interaction.css';
 import { createGlobeBeacon, drawSpaceBeacon } from './beacons.js';
-import { frameWholeEarth } from './globe-camera.js';
+import { anchoredGlobeRange } from './globe-camera.js';
 const $ = (id) => document.getElementById(id);
 const canvas = $('space'), ctx = canvas.getContext('2d');
 const DEFAULT_LOCATION = {lat:37.4083, lon:-122.179, name:"Stanford Dish"};
 const DEFAULT_LEVEL = 2.26;
 let viewer, location, level = DEFAULT_LEVEL, epoch = new Date();
-let wholeEarthFramed=false;
+let cameraAnchor='';
 const beacons=[];
 let activeBeacon;
 const removeGlobeBeacons=new Map();
@@ -54,11 +54,9 @@ function drawSpace() {
   canvas.width = w*dpr; canvas.height = h*dpr; ctx.scale(dpr,dpr);
   ctx.fillStyle = '#03070c'; ctx.fillRect(0,0,w,h);
   const width = fieldWidth(level), px = Math.min(w,h)*.9/width;
-  const t = Math.min(1,level*3), u = Math.max(0,Math.min(1,(level-1)*2));
-  const earth = positions.Earth;
-  const center = SUN.map((n,i) => n*t+(earth[i]-n)*u);
+  const center=activeBeacon ? locationRay(activeBeacon.lat,activeBeacon.lon,epoch).origin : positions.Earth;
   // Fixed north-Galactic-pole orthographic view. No invented star positions.
-  const project = (p) => [w*.52+(p[0]-center[0])*px,h*.47-(p[1]-center[1])*px];
+  const project = (p) => [w/2+(p[0]-center[0])*px,h/2-(p[1]-center[1])*px];
   if(level < .65) {
     drawGalaxy(ctx,project,px);
     canvas.dataset.rendering='barred-spiral-galaxy';
@@ -92,11 +90,18 @@ function changeLevel(value) {
     const focus=location || {lat:20,lon:0};
     const amount=Math.max(0,Math.min(1,level-2));
     const altitude=Math.exp(Math.log(22000000)*(1-amount)+Math.log(1500)*amount);
-    // A nadir view looks straight down the beam. Tilt to expose its height.
     const pitch=Cesium.Math.toRadians(-55);
-    viewer.camera.lookAt(Cesium.Cartesian3.fromDegrees(focus.lon,focus.lat),new Cesium.HeadingPitchRange(0,pitch,altitude/Math.sin(-pitch)));
-    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-    wholeEarthFramed=frameWholeEarth(viewer,false,true);
+    const wide=Math.max(0,Math.min(1,(2.2-level)/.2));
+    const range=Math.max(altitude/Math.sin(-pitch),anchoredGlobeRange(viewer)*wide*wide);
+    const anchor=`${focus.lat},${focus.lon}`;
+    if(cameraAnchor!==anchor){
+      viewer.camera.lookAt(Cesium.Cartesian3.fromDegrees(focus.lon,focus.lat,5),new Cesium.HeadingPitchRange(0,pitch,range));
+      cameraAnchor=anchor;
+    }else{
+      const offset=Cesium.Cartesian3.normalize(viewer.camera.position,new Cesium.Cartesian3());
+      Cesium.Cartesian3.multiplyByScalar(offset,range,offset);
+      viewer.camera.lookAtTransform(viewer.camera.transform,offset);
+    }
     $('distance').textContent=`Camera altitude: ${(viewer.camera.positionCartographic.height/1000).toLocaleString(undefined,{maximumFractionDigits:1})} km`;
     $('context').textContent=level>2.5&&!location?'Use Find my location or enter coordinates to set your destination.':'Drag to rotate · Scroll to zoom · Right-drag to tilt';
   }
@@ -120,7 +125,15 @@ $('scale').oninput=e=>changeLevel(e.target.value);
 canvas.addEventListener('wheel',e=>{e.preventDefault();changeLevel(Math.max(0,Math.min(3,level+e.deltaY*.0005)));},{passive:false});
 function resizeScene(){
   if(level<1.85)drawSpace();
-  if(viewer){viewer.resize();wholeEarthFramed=frameWholeEarth(viewer,wholeEarthFramed);}
+  if(viewer){
+    viewer.resize();
+    const range=anchoredGlobeRange(viewer);
+    if(cameraAnchor&&Cesium.Cartesian3.magnitude(viewer.camera.position)>3*Cesium.Ellipsoid.WGS84.maximumRadius){
+      const offset=Cesium.Cartesian3.normalize(viewer.camera.position,new Cesium.Cartesian3());
+      Cesium.Cartesian3.multiplyByScalar(offset,Math.max(range,Cesium.Cartesian3.magnitude(viewer.camera.position)),offset);
+      viewer.camera.lookAtTransform(viewer.camera.transform,offset);
+    }
+  }
 }
 window.addEventListener('resize',resizeScene);
 window.visualViewport?.addEventListener('resize',resizeScene);
@@ -134,9 +147,8 @@ async function init(){
     viewer.scene.globe.baseColor=Cesium.Color.fromCssColorString('#152c38');
     viewer.scene.screenSpaceCameraController.maximumZoomDistance=50000000;
     viewer.scene.screenSpaceCameraController.minimumZoomDistance=100;
-    viewer.scene.postUpdate.addEventListener(()=>{
-      if(level>=1.85)wholeEarthFramed=frameWholeEarth(viewer);
-    });
+    viewer.scene.screenSpaceCameraController.enableTranslate=false;
+    viewer.scene.screenSpaceCameraController.enableLook=false;
     setLocation(DEFAULT_LOCATION.lat,DEFAULT_LOCATION.lon,undefined,{id:'stanford-dish',name:DEFAULT_LOCATION.name,level:DEFAULT_LEVEL});
     $('locate').disabled=false;$('go').disabled=false;
     try {
