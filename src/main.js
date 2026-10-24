@@ -2,6 +2,7 @@ import { SUN, AU_KM, position, fieldWidth, locationRay } from './astronomy.js';
 import { drawGalaxy, drawSolarSystem } from './render-space.js';
 import './scenes.css';
 import './beacons.css';
+import './interaction.css';
 import { createGlobeBeacon, drawSpaceBeacon } from './beacons.js';
 const $ = (id) => document.getElementById(id);
 const canvas = $('space'), ctx = canvas.getContext('2d');
@@ -83,8 +84,7 @@ function changeLevel(value) {
   document.querySelector('.intro > p:last-child').textContent = cosmic ? (galactic ? 'A rendered barred spiral. Our Sun lies about 26,700 light-years from the center.' : 'True body sizes and orbital distances. At this scale planets are smaller than a pixel; labels show their positions.') : 'From our galactic neighborhood to the ground beneath your feet.';
   canvas.style.display=cosmic?'block':'none';$('earth').style.visibility=cosmic?'hidden':'visible';
   $('space-note').hidden=!cosmic;
-  $('scale-title').textContent=level<.6?'MILKY WAY':level<1.6?'SOLAR SYSTEM':level<2.5?'EARTH':'YOUR LOCATION';
-  document.querySelectorAll('[data-level]').forEach(b=>b.classList.toggle('active',Math.abs(Number(b.dataset.level)-level)<.15));
+  $('scale').setAttribute('aria-valuetext',level<.6?'Milky Way':level<1.6?'Solar system':level<2.5?'Earth':'Your location');
   if(cosmic){drawSpace();$('context').textContent=galactic?'Scroll or use the slider · Galactic north up':'True size and distance scale · Labels and beacons remain visible';}
   else if(viewer){
     const focus=location || {lat:20,lon:0};
@@ -114,7 +114,6 @@ $('locate').onclick=()=>{
 };
 $('coordinate-form').onsubmit=e=>{e.preventDefault();const lat=Number($('lat').value),lon=Number($('lon').value);if(Number.isFinite(lat)&&Number.isFinite(lon)&&Math.abs(lat)<=90&&Math.abs(lon)<=180)setLocation(lat,lon,undefined,{name:$('beacon-name').value.trim() || 'Selected location'});};
 $('scale').oninput=e=>changeLevel(e.target.value);
-document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>changeLevel(b.dataset.level));
 canvas.addEventListener('wheel',e=>{e.preventDefault();changeLevel(Math.max(0,Math.min(3,level+e.deltaY*.0005)));},{passive:false});
 window.addEventListener('resize',()=>{if(level<1.85)drawSpace();});
 $('space-note').textContent='Galactic north projection · Disk glow illustrative · R₀ = 8178 ±13(stat) ±22(sys) pc · Physical distances; enlarged markers';

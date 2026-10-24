@@ -1,0 +1,19 @@
+/* Keep map drags from starting page-wide selection in iPad Safari. */
+html, body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#earth, #earth canvas, #space {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+
+/* Text fields keep normal caret, selection, copy, and paste behavior. */
+input[type="text"], input[type="number"], textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}

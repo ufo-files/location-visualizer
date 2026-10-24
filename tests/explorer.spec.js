@@ -12,7 +12,7 @@ test('Stanford Dish defaults to state-level view and space scenes render',async(
   await page.waitForTimeout(2000);
   await page.screenshot({path:testInfo.outputPath('stanford-california.png')});
   for(const [name,rendering]of [['Milky Way','barred-spiral-galaxy'],['Solar system','shaded-planets-and-orbits'],['Inner planets','shaded-planets-and-orbits']]){
-    await page.getByRole('button',{name,exact:true}).click();
+    await page.locator('#scale').fill(String({'Milky Way':0,'Solar system':1,'Inner planets':1.25}[name]));
     await expect(page.locator('#space')).toHaveAttribute('data-rendering',rendering);
     const lit=await page.locator('#space').evaluate(c=>{const {data}=c.getContext('2d').getImageData(0,0,c.width,c.height);let n=0;for(let i=0;i<data.length;i+=4)if(data[i]>45&&data[i+1]>45&&data[i+2]>45)n++;return n;});
     expect(lit).toBeGreaterThan(name==='Milky Way'?15000:500);
@@ -31,12 +31,12 @@ test('satellite globe, geolocation, and astronomical scale',async({browser})=>{
   await page.locator('#locate').click();
   await expect(page.locator('#coordinates')).toContainText('37.77490');
   await expect(page.locator('#coordinates')).toContainText('±25 m');
-  await page.getByRole('button',{name:'Milky Way',exact:true}).click();
+  await page.locator('#scale').fill('0');
   await expect(page.locator('#space')).toBeVisible();
-  await expect(page.locator('#scale-title')).toHaveText('MILKY WAY');
-  await page.getByRole('button',{name:'Solar system',exact:true}).click();
-  await expect(page.locator('#scale-title')).toHaveText('SOLAR SYSTEM');
-  await page.getByRole('button',{name:'Earth',exact:true}).click();
+  await expect(page.locator('#scale')).toHaveAttribute('aria-valuetext','Milky Way');
+  await page.locator('#scale').fill('1');
+  await expect(page.locator('#scale')).toHaveAttribute('aria-valuetext','Solar system');
+  await page.locator('#scale').fill('2');
   await page.locator('#coordinate-details summary').click();await page.locator('#lat').fill('-33.8688');await page.locator('#lon').fill('151.2093');await page.locator('#go').click();
   await expect(page.locator('#coordinates')).toContainText('-33.86880');
   expect(errors).toEqual([]);await context.close();
@@ -51,18 +51,18 @@ test('custom beacons can be named, colored, toggled, focused, and removed',async
   await page.locator('#marker-name').fill('Home beam');
   await page.locator('#marker-color').fill('#ff55cc');
   await expect(page.locator('#location-title')).toHaveText('Home beam');
-  await page.getByRole('button',{name:'Milky Way',exact:true}).click();
+  await page.locator('#scale').fill('0');
   const countColored=()=>page.locator('#space').evaluate(c=>{const a=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=0;i<a.length;i+=4)if(a[i]>a[i+1]*1.8&&a[i+2]>a[i+1]*1.5&&a[i]>90)n++;return n;});
   const on=await countColored();expect(on).toBeGreaterThan(200);
   await page.locator('#beam-enabled').uncheck();const off=await countColored();expect(on-off).toBeGreaterThan(150);
   await page.locator('#beam-enabled').check();
   await page.screenshot({path:testInfo.outputPath('custom-galactic-beam.png')});
-  await page.getByRole('button',{name:'Earth',exact:true}).click();
+  await page.locator('#scale').fill('2');
   await page.locator('#coordinate-details summary').click();
   await page.locator('#beacon-name').fill('Sydney beacon');await page.locator('#lat').fill('-33.8688');await page.locator('#lon').fill('151.2093');await page.locator('#go').click();
   await expect(page.getByRole('button',{name:'Focus Sydney beacon',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Focus Home beam',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Solar system',exact:true}).click();
+  await page.locator('#scale').fill('1');
   await expect(page.locator('#space')).toHaveAttribute('data-beacon-count','2');
   await page.getByRole('button',{name:'Remove Sydney beacon',exact:true}).click();
   await expect(page.locator('#space')).toHaveAttribute('data-beacon-count','1');
@@ -80,7 +80,7 @@ test('rendered solar disks use physical radii and grow with distance zoom',async
       return original.apply(this,args);
     };
   });
-  await page.getByRole('button',{name:'Solar system',exact:true}).click();
+  await page.locator('#scale').fill('1');
   const widths=await page.evaluate(()=>window.sphereDraws);
   expect(widths).toHaveLength(9);
   const px=900/80;
@@ -88,7 +88,7 @@ test('rendered solar disks use physical radii and grow with distance zoom',async
   expect(widths[4]/widths[6]).toBeCloseTo(69911/6371.0084,7);
   expect(widths[6]).toBeLessThan(.001);
   await page.evaluate(()=>window.sphereDraws=[]);
-  await page.getByRole('button',{name:'Inner planets',exact:true}).click();
+  await page.locator('#scale').fill('1.25');
   const innerSun=await page.evaluate(()=>window.sphereDraws[0]);
   // Inner view spans 4 AU rather than 80 AU: every disk must be 20x wider.
   expect(innerSun/widths[0]).toBeCloseTo(20,6);
