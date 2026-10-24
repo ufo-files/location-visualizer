@@ -1,12 +1,16 @@
-import { SUN, PC_AU, AU_KM, position, fieldWidth } from './astronomy.js';
+import { SUN, AU_KM, position, fieldWidth } from './astronomy.js';
+import { drawGalaxy, drawSolarSystem } from './render-space.js';
+import './scenes.css';
 const $ = (id) => document.getElementById(id);
 const canvas = $('space'), ctx = canvas.getContext('2d');
-let viewer, location, marker, accuracyRing, level = 2, epoch = new Date();
+const DEFAULT_LOCATION = {lat:37.4083, lon:-122.179, name:"Stanford Dish"};
+const DEFAULT_LEVEL = 2.26;
+let viewer, location, marker, accuracyRing, level = DEFAULT_LEVEL, epoch = new Date();
 const planets = ['Mercury','Venus','Earth','Mars','Jupiter','Saturn','Uranus','Neptune'];
 let positions = Object.fromEntries(planets.map(p => [p, position(p, epoch)]));
 const status = (message) => { $('status').textContent = message; };
 function drawSpace() {
-  $('space-note').textContent=`${epoch.toISOString().slice(0,19)} UTC · Galactic north up · Disk illustrative · R₀ = 8178 ±13(stat) ±22(sys) pc · Markers enlarged`;
+  $('space-note').textContent=`${epoch.toISOString().slice(0,19)} UTC · Galactic north up · Spiral structure illustrative · R₀ = 8178 ±13(stat) ±22(sys) pc · Body sizes enlarged; positions calculated`;
   const dpr = Math.min(devicePixelRatio, 2), w = innerWidth, h = innerHeight;
   canvas.width = w*dpr; canvas.height = h*dpr; ctx.scale(dpr,dpr);
   ctx.fillStyle = '#03070c'; ctx.fillRect(0,0,w,h);
@@ -16,22 +20,12 @@ function drawSpace() {
   const center = SUN.map((n,i) => n*t+(earth[i]-n)*u);
   // Fixed north-Galactic-pole orthographic view. No invented star positions.
   const project = (p) => [w*.52+(p[0]-center[0])*px,h*.47-(p[1]-center[1])*px];
-  function dot(p,label,color,r=3) {
-    const [x,y]=project(p); if(x < -100 || y < -100 || x>w+100 || y>h+100)return;
-    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
-    ctx.font='11px monospace';ctx.fillStyle=color;ctx.fillText(label,x+10,y-9);
-  }
   if(level < .65) {
-    const [x,y]=project([0,0,0]), radius=15000*PC_AU*px;
-    const glow=ctx.createRadialGradient(x,y,0,x,y,Math.max(1,radius));
-    glow.addColorStop(0,'#c7bda85c');glow.addColorStop(.15,'#8e9ea43a');glow.addColorStop(.7,'#627e8e1c');glow.addColorStop(1,'#00000000');
-    ctx.fillStyle=glow;ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='#b0c9d121';ctx.beginPath();ctx.arc(x,y,8178*PC_AU*px,0,Math.PI*2);ctx.stroke();
-    dot([0,0,0],'Galactic center','#f0d9ad',5);
-    dot(SUN,'Sun · R₀ = 8.178 kpc','#c1f1d5',5);
+    drawGalaxy(ctx,project,px);
+    canvas.dataset.rendering='barred-spiral-galaxy';
   } else {
-    dot(SUN,'Sun','#f9d998',6);
-    for(const body of planets)dot(positions[body],body,body==='Earth'?'#bdf2d2':'#98abbc',body==='Earth'?5:3);
+    drawSolarSystem(ctx,project,epoch,positions);
+    canvas.dataset.rendering='shaded-planets-and-orbits';
   }
   const barAU = 10**Math.floor(Math.log10(width/5));
   const barPx = barAU*px;
@@ -44,11 +38,15 @@ function drawSpace() {
 function changeLevel(value) {
   level = Number(value); $('scale').value = level;
   const cosmic = level < 1.85;
+  document.body.classList.toggle('cosmic',cosmic);
+  const galactic = level < .65;
+  document.querySelector('.intro h1').innerHTML = cosmic ? (galactic ? 'The Milky Way.' : 'Our solar system.') : 'Your place.<br>In everything.';
+  document.querySelector('.intro > p:last-child').textContent = cosmic ? (galactic ? 'A rendered barred spiral. Our Sun lies about 26,700 light-years from the center.' : 'Rendered worlds on calculated orbits. Choose Inner planets to explore closer to the Sun.') : 'From our galactic neighborhood to the ground beneath your feet.';
   canvas.style.display=cosmic?'block':'none';$('earth').style.visibility=cosmic?'hidden':'visible';
   $('space-note').hidden=!cosmic;
   $('scale-title').textContent=level<.6?'MILKY WAY':level<1.6?'SOLAR SYSTEM':level<2.5?'EARTH':'YOUR LOCATION';
-  document.querySelectorAll('[data-level]').forEach(b=>b.classList.toggle('active',Number(b.dataset.level)===Math.round(level)));
-  if(cosmic){drawSpace();$('context').textContent='Scroll or use the slider · Galactic north up · Markers enlarged for visibility';}
+  document.querySelectorAll('[data-level]').forEach(b=>b.classList.toggle('active',Math.abs(Number(b.dataset.level)-level)<.15));
+  if(cosmic){drawSpace();$('context').textContent='Scroll or use the slider · Galactic north up · Body sizes enlarged';}
   else if(viewer){
     const focus=location || {lat:20,lon:0};
     const amount=Math.max(0,Math.min(1,level-2));
@@ -58,13 +56,13 @@ function changeLevel(value) {
     $('context').textContent=level>2.5&&!location?'Use Find my location or enter coordinates to set your destination.':'Drag to rotate · Scroll to zoom · Right-drag to tilt';
   }
 }
-function setLocation(lat,lon,accuracy) {
-  location={lat,lon};$('location-title').textContent=accuracy?'Your location':'Selected location';
+function setLocation(lat,lon,accuracy,options = {}) {
+  location={lat,lon};$('location-title').textContent=options.name || (accuracy?'Your location':'Selected location');
   $('coordinates').textContent=`${lat.toFixed(5)}°, ${lon.toFixed(5)}°${accuracy ? ` · accuracy ±${Math.round(accuracy)} m`:''}`;
   if(marker)viewer.entities.remove(marker);if(accuracyRing)viewer.entities.remove(accuracyRing);
   marker=viewer.entities.add({position:Cesium.Cartesian3.fromDegrees(lon,lat),point:{pixelSize:13,color:Cesium.Color.fromCssColorString('#bdf2d2'),outlineColor:Cesium.Color.BLACK,outlineWidth:3,disableDepthTestDistance:Number.POSITIVE_INFINITY}});
   if(accuracy)accuracyRing=viewer.entities.add({position:Cesium.Cartesian3.fromDegrees(lon,lat),ellipse:{semiMajorAxis:Math.max(accuracy,1),semiMinorAxis:Math.max(accuracy,1),material:Cesium.Color.fromCssColorString('#bdf2d2').withAlpha(.2)}});
-  status(accuracy?'Location found. The shaded area shows reported accuracy.':'Coordinates selected.');changeLevel(3);
+  status(options.name ? 'Default location · California overview. Zoom in to explore the Dish.' : accuracy?'Location found. The shaded area shows reported accuracy.':'Coordinates selected.');changeLevel(options.level ?? 3);
 }
 $('locate').onclick=()=>{
   if(!isSecureContext){status('Location requires HTTPS or localhost. Enter coordinates instead.');return;}
@@ -86,8 +84,8 @@ async function init(){
     viewer.scene.globe.baseColor=Cesium.Color.fromCssColorString('#152c38');
     viewer.scene.screenSpaceCameraController.maximumZoomDistance=50000000;
     viewer.scene.screenSpaceCameraController.minimumZoomDistance=100;
-    changeLevel(2);$('locate').disabled=false;$('go').disabled=false;
-    status('Ready. Find your location or explore the scale below.');
+    setLocation(DEFAULT_LOCATION.lat,DEFAULT_LOCATION.lon,undefined,{name:DEFAULT_LOCATION.name,level:DEFAULT_LEVEL});
+    $('locate').disabled=false;$('go').disabled=false;
     try {
       const imagery=await Cesium.ArcGisMapServerImageryProvider.fromUrl('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer',{enablePickFeatures:false});
       imagery.errorEvent.addEventListener(()=>status('Some satellite tiles could not load. Check your connection.'));
