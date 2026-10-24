@@ -12,6 +12,11 @@ html, body {
   touch-action: none;
 }
 
+/* Follow Safari's visible viewport when its browser chrome changes height. */
+#earth, #space {
+  height: 100dvh;
+}
+
 /* Text fields keep normal caret, selection, copy, and paste behavior. */
 input[type="text"], input[type="number"], textarea {
   -webkit-user-select: text;

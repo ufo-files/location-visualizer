@@ -4,11 +4,13 @@ import './scenes.css';
 import './beacons.css';
 import './interaction.css';
 import { createGlobeBeacon, drawSpaceBeacon } from './beacons.js';
+import { frameWholeEarth } from './globe-camera.js';
 const $ = (id) => document.getElementById(id);
 const canvas = $('space'), ctx = canvas.getContext('2d');
 const DEFAULT_LOCATION = {lat:37.4083, lon:-122.179, name:"Stanford Dish"};
 const DEFAULT_LEVEL = 2.26;
 let viewer, location, level = DEFAULT_LEVEL, epoch = new Date();
+let wholeEarthFramed=false;
 const beacons=[];
 let activeBeacon;
 const removeGlobeBeacons=new Map();
@@ -94,6 +96,7 @@ function changeLevel(value) {
     const pitch=Cesium.Math.toRadians(-55);
     viewer.camera.lookAt(Cesium.Cartesian3.fromDegrees(focus.lon,focus.lat),new Cesium.HeadingPitchRange(0,pitch,altitude/Math.sin(-pitch)));
     viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    wholeEarthFramed=frameWholeEarth(viewer);
     $('distance').textContent=`Camera altitude: ${(viewer.camera.positionCartographic.height/1000).toLocaleString(undefined,{maximumFractionDigits:1})} km`;
     $('context').textContent=level>2.5&&!location?'Use Find my location or enter coordinates to set your destination.':'Drag to rotate · Scroll to zoom · Right-drag to tilt';
   }
@@ -115,7 +118,12 @@ $('locate').onclick=()=>{
 $('coordinate-form').onsubmit=e=>{e.preventDefault();const lat=Number($('lat').value),lon=Number($('lon').value);if(Number.isFinite(lat)&&Number.isFinite(lon)&&Math.abs(lat)<=90&&Math.abs(lon)<=180)setLocation(lat,lon,undefined,{name:$('beacon-name').value.trim() || 'Selected location'});};
 $('scale').oninput=e=>changeLevel(e.target.value);
 canvas.addEventListener('wheel',e=>{e.preventDefault();changeLevel(Math.max(0,Math.min(3,level+e.deltaY*.0005)));},{passive:false});
-window.addEventListener('resize',()=>{if(level<1.85)drawSpace();});
+function resizeScene(){
+  if(level<1.85)drawSpace();
+  if(viewer){viewer.resize();wholeEarthFramed=frameWholeEarth(viewer,wholeEarthFramed);}
+}
+window.addEventListener('resize',resizeScene);
+window.visualViewport?.addEventListener('resize',resizeScene);
 $('space-note').textContent='Galactic north projection · Disk glow illustrative · R₀ = 8178 ±13(stat) ±22(sys) pc · Physical distances; enlarged markers';
 async function init(){
   try {
@@ -126,6 +134,10 @@ async function init(){
     viewer.scene.globe.baseColor=Cesium.Color.fromCssColorString('#152c38');
     viewer.scene.screenSpaceCameraController.maximumZoomDistance=50000000;
     viewer.scene.screenSpaceCameraController.minimumZoomDistance=100;
+    viewer.camera.percentageChanged=.005;
+    viewer.camera.changed.addEventListener(()=>{
+      if(level>=1.85)wholeEarthFramed=frameWholeEarth(viewer);
+    });
     setLocation(DEFAULT_LOCATION.lat,DEFAULT_LOCATION.lon,undefined,{id:'stanford-dish',name:DEFAULT_LOCATION.name,level:DEFAULT_LEVEL});
     $('locate').disabled=false;$('go').disabled=false;
     try {
