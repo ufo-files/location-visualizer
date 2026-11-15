@@ -49,3 +49,10 @@ In space views, Astronomy Engine computes the observer position and local vertic
 - The Earth globe uses Cesium's WGS84 ellipsoid and [Esri World Imagery](https://cesium.com/learn/cesiumjs/ref-doc/ArcGisMapServerImageryProvider.html). There is no elevation terrain model in V1. Satellite imagery is a mosaic collected on different dates, not live imagery. Globe credits retain provider attribution.
 
 This version provides calculated astronomical positions within an explicitly bounded model. It does not claim precision ephemeris/navigation accuracy, a measured full-galaxy reconstruction, or a continuous scientifically oriented surface-to-galaxy camera.
+
+
+## Current licensing
+
+Original UFO Files software is available under the **UFO Files Noncommercial Shared-Source License 1.0**: no commercial use; distributed derivatives and modified network services must provide corresponding source under the same terms. Original content is **CC BY-NC-SA 4.0**, only to the extent we control its rights.
+
+See [LICENSE](LICENSE), [LICENSE-CONTENT.txt](LICENSE-CONTENT.txt), and [LICENSING.md](LICENSING.md) for scope, exceptions, and the transition from prior grants. These are source-available terms, not an OSI-approved open-source license. Third-party materials and public-domain records retain their own status.
